@@ -5,6 +5,7 @@ plugins {
 	id 'pl.allegro.tech.build.axion-release' version '1.10.1'
 	id 'com.palantir.docker' version '0.25.0'
 	id 'com.palantir.docker-run' version '0.25.0'
+	id 'jp.classethod.aws.cloudformation' version '0.41'
 }
 
 group = 'com.springjenkinstut'
@@ -39,7 +40,8 @@ project.version=scmVersion.version
 // name of the image that docker creates
 // the palantir plugins are used to integrate creating an image with gradle build
 // image name should not contain and capital letters or it will give a build error
-String imageName = "wmuhea/springjenkinscicd:${version}"
+String dockerHubUsernameProperty = findProperty("dockerHubUsername")?: 'wmuhea'
+String imageName = "${dockerHubUsernameProperty}/springjenkinscicd:${version}"
 
 docker {
 	name imageName
@@ -52,4 +54,20 @@ dockerRun {
 	image imageName
 	ports '8080:8080'
 	clean true
+}
+
+// Cloud formation as one gradle task
+// stackName => the way to refer to your template once it is deployed in aws
+// It contains all the resources that have been defined by the template
+// All the parameters we need in yml template are added here
+
+cloudFormation {
+	stackName "$project.name-stack"
+	stackParams([
+			SubnetID: findProperty("SubnetId")?: '',
+			ServiceName: project.name,
+			ServiceVersion: project.version,
+			DockerHubUsername: dockerHubUsernameProperty
+	])
+	templateFile project.file("ecs.yml")
 }
